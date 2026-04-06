@@ -1,7 +1,8 @@
 #include <iostream>
 #include <string>
-#include <vector>
 using namespace std;
+
+const int MAX = 100;
 
 class Transaction {
 protected:
@@ -10,19 +11,14 @@ protected:
     string category;
 
 public:
-    Transaction(double amt, string dt, string cat) {
-        amount = amt;
-        date = dt;
-        category = cat;
-    }
+    Transaction() : amount(0) {}
+    Transaction(double amt, string dt, string cat) : amount(amt), date(dt), category(cat) {}
 
     virtual void display() {
         cout << "  Amount: $" << amount << " | Date: " << date << " | Category: " << category;
     }
 
-    double getAmount() {
-        return amount;
-    }
+    double getAmount() { return amount; }
 };
 
 class Income : public Transaction {
@@ -30,10 +26,9 @@ private:
     string source;
 
 public:
+    Income() {}
     Income(double amt, string dt, string cat, string src)
-        : Transaction(amt, dt, cat) {
-        source = src;
-    }
+        : Transaction(amt, dt, cat), source(src) {}
 
     void display() override {
         cout << "  [+] INCOME  | Source: " << source;
@@ -47,10 +42,9 @@ private:
     string purpose;
 
 public:
+    Expense() {}
     Expense(double amt, string dt, string cat, string purp)
-        : Transaction(amt, dt, cat) {
-        purpose = purp;
-    }
+        : Transaction(amt, dt, cat), purpose(purp) {}
 
     void display() override {
         cout << "  [-] EXPENSE | Purpose: " << purpose;
@@ -66,7 +60,9 @@ private:
     double savedAmount;
 
 public:
-    SavingsGoal(string name, double target) {
+    SavingsGoal() : targetAmount(0), savedAmount(0) {}
+
+    void set(string name, double target) {
         goalName = name;
         targetAmount = target;
         savedAmount = 0;
@@ -85,11 +81,10 @@ public:
         cout << "  Target  : $" << targetAmount << endl;
         cout << "  Saved   : $" << savedAmount << " (" << percent << "%)" << endl;
 
-        if (savedAmount >= targetAmount) {
+        if (savedAmount >= targetAmount)
             cout << "  *** GOAL REACHED! Congratulations! ***" << endl;
-        } else {
+        else
             cout << "  Still need: $" << remaining << endl;
-        }
     }
 
     string getName() { return goalName; }
@@ -99,53 +94,56 @@ class User {
 private:
     string name;
     double balance;
-    vector<Transaction*> transactions;
-    vector<SavingsGoal> goals;
+
+    Income incomes[MAX];
+    Expense expenses[MAX];
+    int incomeCount;
+    int expenseCount;
+
+    SavingsGoal goals[MAX];
+    int goalCount;
 
 public:
-    User(string userName) {
+    User(string userName) : balance(0), incomeCount(0), expenseCount(0), goalCount(0) {
         name = userName;
-        balance = 0;
         cout << "\n  Welcome, " << name << "! Account created." << endl;
-    }
-
-    ~User() {
-        for (Transaction* t : transactions) delete t;
     }
 
     void addIncome(double amount, string date, string category, string source) {
         if (amount <= 0) { cout << "  Error: Amount must be positive!" << endl; return; }
+        if (incomeCount >= MAX) { cout << "  Error: Income list full!" << endl; return; }
         balance += amount;
-        transactions.push_back(new Income(amount, date, category, source));
+        incomes[incomeCount++] = Income(amount, date, category, source);
         cout << "  Income added! Balance: $" << balance << endl;
     }
 
     void addExpense(double amount, string date, string category, string purpose) {
         if (amount <= 0) { cout << "  Error: Amount must be positive!" << endl; return; }
         if (amount > balance) { cout << "  Error: Not enough balance! You have $" << balance << endl; return; }
+        if (expenseCount >= MAX) { cout << "  Error: Expense list full!" << endl; return; }
         balance -= amount;
-        transactions.push_back(new Expense(amount, date, category, purpose));
+        expenses[expenseCount++] = Expense(amount, date, category, purpose);
         cout << "  Expense recorded! Balance: $" << balance << endl;
     }
 
-    double getBalance() { return balance; }
-
     void setSavingsGoal(string name, double target) {
-        goals.push_back(SavingsGoal(name, target));
+        if (goalCount >= MAX) { cout << "  Error: Goals list full!" << endl; return; }
+        goals[goalCount].set(name, target);
+        goalCount++;
         cout << "  Goal '" << name << "' set! Target: $" << target << endl;
     }
 
     void saveTowardsGoal(int index, double amount) {
-        if (index < 0 || index >= (int)goals.size()) { cout << "  Error: Goal not found!" << endl; return; }
+        if (index < 0 || index >= goalCount) { cout << "  Error: Goal not found!" << endl; return; }
         if (amount > balance) { cout << "  Error: Not enough balance!" << endl; return; }
         balance -= amount;
         goals[index].addSavings(amount);
     }
 
     void viewGoals() {
-        if (goals.empty()) { cout << "  No savings goals yet!" << endl; return; }
+        if (goalCount == 0) { cout << "  No savings goals yet!" << endl; return; }
         cout << "\n  ===== SAVINGS GOALS =====" << endl;
-        for (int i = 0; i < (int)goals.size(); i++) {
+        for (int i = 0; i < goalCount; i++) {
             cout << "\n  Goal #" << (i + 1) << ":" << endl;
             goals[i].checkProgress();
         }
@@ -156,13 +154,12 @@ public:
         cout << "  SUMMARY FOR: " << name << endl;
         cout << "  ==============================" << endl;
 
-        if (transactions.empty()) {
+        if (incomeCount == 0 && expenseCount == 0) {
             cout << "  No transactions yet!" << endl;
         } else {
             cout << "\n  TRANSACTIONS:" << endl;
-            for (Transaction* t : transactions) {
-                t->display();
-            }
+            for (int i = 0; i < incomeCount; i++) incomes[i].display();
+            for (int i = 0; i < expenseCount; i++) expenses[i].display();
         }
 
         cout << "\n  Current Balance: $" << balance << endl;
@@ -188,7 +185,6 @@ public:
 
     void showMenu() {
         int choice;
-
         do {
             cout << "\n  =============================" << endl;
             cout << "   SMART SAVINGS TRACKER MENU  " << endl;
